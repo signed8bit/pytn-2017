@@ -1,0 +1,101 @@
+---
+# file: main.yml
+# Tasks for the Minecraft server role
+
+# -------------
+# Prerequisites
+# -------------
+
+- name: unsupported package manager
+  fail: msg='this playbook requries apt'
+  when: ansible_pkg_mgr != 'apt'
+
+# ------------
+# Dependencies
+# ------------
+
+- name: install dependencies (apt)
+  apt: name={{ item }} state=present update_cache=true cache_valid_time=120
+  with_items:
+    - openjdk-7-jre-headless
+  when: ansible_pkg_mgr == 'apt'
+
+# ----------------
+# Minecraft Server
+# ----------------
+
+- name: create minecraft group
+  group: >
+    name=minecraft
+    state=present
+
+- name: create minecraft user
+  user: >
+    name=minecraft
+    comment=minecraft
+    group=minecraft
+    state=present
+
+- name: create installation directory
+  file: >
+    path={{ install.directory }}
+    owner=minecraft
+    group=minecraft
+    mode=0755
+    state=directory
+
+- name: install/upgrade minecraft
+  get_url: >
+    url=https://s3.amazonaws.com/Minecraft.Download/versions/{{ install.version }}/minecraft_server.{{ install.version }}.jar
+    dest={{ install.directory }}/minecraft_server.{{ install.version }}.jar
+    owner=minecraft
+    group=minecraft
+    mode=0644
+    force=no
+  notify: restart minecraft
+
+- name: link minecraft
+  file: >
+    src={{ install.directory }}/minecraft_server.{{ install.version }}.jar
+    dest={{ install.directory }}/minecraft_server.jar
+    owner=minecraft
+    group=minecraft
+    state=link
+  notify: restart minecraft
+
+#- name: configure minecraft (server.properties)
+#  template: >
+#    src=server.properties.j2
+#    dest={{ install.directory }}/server.properties
+#    owner=minecraft
+#    group=minecraft
+#    mode=0644
+#  notify: restart minecraft
+
+- name: configure minecraft (eula.txt)
+  copy: >
+    src=eula.txt
+    dest={{ install.directory }}/eula.txt
+    owner=minecraft
+    group=minecraft
+    mode=0644
+  notify: restart minecraft
+
+- name: configure minecrat service
+  template: >
+    src=minecraft-server.conf.j2
+    dest=/etc/init/minecraft-server.conf
+    owner=root
+    group=root
+    mode=0644
+  notify: restart minecraft
+
+- name: start and enable minecraft
+  service: >
+    name=minecraft-server
+    state=started
+    enabled=true
+
+
+
+
