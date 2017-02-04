@@ -1,0 +1,4 @@
+cryptography==1.7.1
+ansible==2.2.1.0
+docker-py==1.10.6
+molecule==1.19.1

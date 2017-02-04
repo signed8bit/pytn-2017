@@ -1,101 +1,77 @@
 ---
-# file: main.yml
-# Tasks for the Minecraft server role
 
-# -------------
+##
 # Prerequisites
-# -------------
+##
 
-- name: unsupported package manager
-  fail: msg='this playbook requries apt'
-  when: ansible_pkg_mgr != 'apt'
+- name: Unsupported operating system
+  fail: msg='This role requires a RedHat or Ubuntu based operating system'
+  when: ansible_os_family != "RedHat" and ansible_os_family != "Debian"
 
-# ------------
-# Dependencies
-# ------------
+- name: Setup repos (yum)
+  yum:
+    name: epel-release
+    state: present
+  when: ansible_os_family == "RedHat"
 
-- name: install dependencies (apt)
-  apt: name={{ item }} state=present update_cache=true cache_valid_time=120
-  with_items:
-    - openjdk-7-jre-headless
-  when: ansible_pkg_mgr == 'apt'
+##
+# Install
+##
 
-# ----------------
-# Minecraft Server
-# ----------------
+- name: Install packages and dependencies (apt)
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ packages_apt }}"
+  when: ansible_os_family == "Debian"
 
-- name: create minecraft group
-  group: >
-    name=minecraft
-    state=present
+- name: Install packages and dependencies (yum)
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ packages_yum }}"
+  when: ansible_os_family == "RedHat"
 
-- name: create minecraft user
-  user: >
-    name=minecraft
-    comment=minecraft
-    group=minecraft
-    state=present
+##
+# Configure
+##
 
-- name: create installation directory
-  file: >
-    path={{ install.directory }}
-    owner=minecraft
-    group=minecraft
-    mode=0755
-    state=directory
+- name: Copy index.html (Debian)
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
+    mode: '0755'
+  when: ansible_os_family == "Debian"
 
-- name: install/upgrade minecraft
-  get_url: >
-    url=https://s3.amazonaws.com/Minecraft.Download/versions/{{ install.version }}/minecraft_server.{{ install.version }}.jar
-    dest={{ install.directory }}/minecraft_server.{{ install.version }}.jar
-    owner=minecraft
-    group=minecraft
-    mode=0644
-    force=no
-  notify: restart minecraft
+- name: Copy index.html (RedHat)
+  template:
+    src: index.html.j2
+    dest: /usr/share/nginx/html/index.html
+    owner: root
+    group: root
+    mode: '0755'
+  when: ansible_os_family == "RedHat"
 
-- name: link minecraft
-  file: >
-    src={{ install.directory }}/minecraft_server.{{ install.version }}.jar
-    dest={{ install.directory }}/minecraft_server.jar
-    owner=minecraft
-    group=minecraft
-    state=link
-  notify: restart minecraft
+- name: Check idempotency.conf
+  stat:
+    path: /etc/idempotency.conf
+  register: idempotency_file
 
-#- name: configure minecraft (server.properties)
-#  template: >
-#    src=server.properties.j2
-#    dest={{ install.directory }}/server.properties
-#    owner=minecraft
-#    group=minecraft
-#    mode=0644
-#  notify: restart minecraft
+- name: Touch idempotency.conf
+  file:
+    path: /etc/idempotency.conf
+    state: touch
+  when: not idempotency_file.stat.exists
 
-- name: configure minecraft (eula.txt)
-  copy: >
-    src=eula.txt
-    dest={{ install.directory }}/eula.txt
-    owner=minecraft
-    group=minecraft
-    mode=0644
-  notify: restart minecraft
+##
+# Service Management
+##
 
-- name: configure minecrat service
-  template: >
-    src=minecraft-server.conf.j2
-    dest=/etc/init/minecraft-server.conf
-    owner=root
-    group=root
-    mode=0644
-  notify: restart minecraft
-
-- name: start and enable minecraft
-  service: >
-    name=minecraft-server
-    state=started
-    enabled=true
-
-
-
-
+- name: Enable and start services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items: "{{ services }}"

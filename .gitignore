@@ -1,0 +1,7 @@
+molecule.yml
+
+.molecule/*
+.cache/*
+
+__pycache__/*
+*.pyc

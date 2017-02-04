@@ -1,6 +1,4 @@
 ---
-# file: main.yml
-# Handlers for Minecraft server notifications
 
-- name: restart minecraft
-  service: name=minecraft-server state=restarted
+- name: Restart nginx
+  service: name=nginx state=restarted
