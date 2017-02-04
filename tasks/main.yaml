@@ -54,16 +54,6 @@
     mode: '0755'
   when: ansible_os_family == "RedHat"
 
-- name: Check idempotency.conf
-  stat:
-    path: /etc/idempotency.conf
-  register: idempotency_file
-
-- name: Touch idempotency.conf
-  file:
-    path: /etc/idempotency.conf
-    state: touch
-  when: not idempotency_file.stat.exists
 
 ##
 # Service Management
